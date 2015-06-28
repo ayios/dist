@@ -122,3 +122,11 @@ int init_getkey_module_ns (char *ns_name)
      }
    return 0;
 }
+
+void deinit_getkey_module (void)
+{
+   while (TTY_Inited > 0)
+     {
+	reset_tty_intrin ();
+     }
+}
