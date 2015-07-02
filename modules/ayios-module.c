@@ -1,19 +1,65 @@
  /*
  * This code was written by Agathoklis D. Hatzimanikas
- * You may distribute under the terms of the GNU General Public
+ * with ideas from various sources around the OS universe
+ * You may distribute it under the terms of the GNU General Public
  * License.
  */
 
 #include <limits.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <security/pam_appl.h>
+#include <string.h>
 #include <pwd.h>
 #include <grp.h>
 #include <errno.h>
-#include <sys/mount.h>
 #include <slang.h>
 
 SLANG_MODULE(ayios);
+
+static int initgroups_intrin (char *user, int *gid)
+{
+   int retval;
+   retval = initgroups (user, (gid_t) *gid);
+   if (-1 == retval)
+     SLerrno_set_errno (errno);
+
+  return retval;
+}
+
+int custom_converation (int num_msg, const struct pam_message** msg, struct pam_response** resp, void* appdata_ptr)
+{
+   struct pam_response* reply = (struct pam_response* ) malloc (sizeof (struct pam_response));
+   reply[0].resp = (char*) appdata_ptr;
+   reply[0].resp_retcode = 0;
+
+   *resp = reply;
+
+   return PAM_SUCCESS;
+}
+
+static int auth_intrin (char *user, char* pass) 
+{
+   char* password = (char*) malloc (strlen (pass) + 1);
+
+   strcpy (password, pass);
+
+   struct pam_conv pamc = {custom_converation, password};
+   pam_handle_t* pamh; 
+   int retval;
+   
+   if ((retval = pam_start ("exit", user, &pamc, &pamh)) == PAM_SUCCESS)
+     {
+     retval = pam_authenticate (pamh, 0);
+     
+     if (pam_end (pamh, 0) != PAM_SUCCESS)
+       return -1; 
+
+     return retval == PAM_SUCCESS ? 0 : -1;
+     }
+   else
+     return -1;
+}
 
 static int push_grp_struct (struct group *grent)
 {
@@ -210,6 +256,8 @@ static void realpath_intrin (char *path)
 
 static SLang_Intrin_Fun_Type Ayios_Intrinsics [] =
 {
+   MAKE_INTRINSIC_SS("auth", auth_intrin, SLANG_INT_TYPE),
+   MAKE_INTRINSIC_SI("initgroups", initgroups_intrin, SLANG_INT_TYPE),
    MAKE_INTRINSIC_S("realpath", realpath_intrin, SLANG_VOID_TYPE),
    MAKE_INTRINSIC_S("getpwnam", getpwnan_intrin, SLANG_VOID_TYPE),
    MAKE_INTRINSIC_I("getpwuid", getpwuid_intrin, SLANG_VOID_TYPE),

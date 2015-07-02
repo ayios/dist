@@ -292,6 +292,7 @@ static SLang_IConstant_Type Module_IConstants [] =
   };
 
 SLANG_MODULE(crypto);
+
 int init_crypto_module_ns (char *ns_name){
   SLang_NameSpace_Type *ns = SLns_create_namespace(ns_name);
   if (ns == NULL)

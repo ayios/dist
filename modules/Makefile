@@ -56,7 +56,7 @@ curl-module.so:
 json-module.so:
 	$(COMPILE_CMD) json-module.c -o json-module.so $(LIBS)
 ayios-module.so:
-	$(COMPILE_CMD) ayios-module.c -o ayios-module.so $(LIBS)
+	$(COMPILE_CMD) ayios-module.c -o ayios-module.so $(LIBS) -lpam
 
 install:
 	${INSTALL_DIR} ${MODULE_DIR}
