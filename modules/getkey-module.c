@@ -65,7 +65,12 @@ static void reset_tty_intrin (void)
    if (0 == TTY_Inited)
      return;
 
-   SLang_reset_tty ();
+   while (TTY_Inited > 0)
+     {
+     SLang_reset_tty ();
+     TTY_Inited--;
+     }
+
    TTY_Inited = 0;
 }
 
@@ -120,13 +125,11 @@ int init_getkey_module_ns (char *ns_name)
 	TTY_Inited = 0;
 	inited = 1;
      }
+
    return 0;
 }
 
 void deinit_getkey_module (void)
 {
-   while (TTY_Inited > 0)
-     {
-	reset_tty_intrin ();
-     }
+   reset_tty_intrin ();
 }

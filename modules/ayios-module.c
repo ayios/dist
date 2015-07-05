@@ -239,19 +239,25 @@ static void getpwnan_intrin (char *name)
 
 static void realpath_intrin (char *path)
 {
-   char *p;
+   int path_max;
+
+#ifdef PATH_MAX
+  path_max = PATH_MAX;
+#else
+  path_max = pathconf (path, _PC_PATH_MAX);
+  if (path_max <= 0)
+    path_max = 4096;
+#endif
+
+   char p[path_max];
    
-   p = realpath (path, p);
-   
-   if (p == NULL)
+   if (realpath (path, p) == 0)
      {
+     SLerrno_set_errno (errno);
      (void) SLang_push_null ();
-     return;
      }
    else
      (void)SLang_push_string (p);
-
-  free (p);
 }
 
 static SLang_Intrin_Fun_Type Ayios_Intrinsics [] =
