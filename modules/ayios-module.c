@@ -1,19 +1,22 @@
  /*
  * This code was written by Agathoklis D. Hatzimanikas
  * with ideas from various sources around the OS universe
+ * and from S-Lang sources study  
  * You may distribute it under the terms of the GNU General Public
  * License.
  */
 
-#include <limits.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <security/pam_appl.h>
-#include <string.h>
-#include <pwd.h>
-#include <grp.h>
-#include <errno.h>
-#include <slang.h>
+# include <limits.h>
+# include <stdlib.h>
+# include <unistd.h>
+# include <security/pam_appl.h>
+# include <string.h>
+# include <pwd.h>
+# include <grp.h>
+# include <sys/file.h>
+# include <sys/stat.h>
+# include <errno.h>
+# include <slang.h>
 
 SLANG_MODULE(ayios);
 
@@ -22,7 +25,7 @@ static int initgroups_intrin (char *user, int *gid)
    int retval;
    retval = initgroups (user, (gid_t) *gid);
    if (-1 == retval)
-     SLerrno_set_errno (errno);
+     (void) SLerrno_set_errno (errno);
 
   return retval;
 }
@@ -130,11 +133,11 @@ static void getgrname_intrin (char *name)
 
   if (grentp == NULL)
     {
-    SLerrno_set_errno (retval);
+    (void) SLerrno_set_errno (retval);
     (void) SLang_push_null ();
     }
   else
-     push_grp_struct (&grent);
+    push_grp_struct (&grent);
 }
 
 static void getgrgid_intrin (int *gid)
@@ -147,7 +150,7 @@ static void getgrgid_intrin (int *gid)
   
   bufsize = sysconf (_SC_GETPW_R_SIZE_MAX);
   if (bufsize == -1)
-     bufsize = 16384;
+    bufsize = 16384;
 
   buf = malloc (bufsize);
   
@@ -155,11 +158,11 @@ static void getgrgid_intrin (int *gid)
 
   if (grentp == NULL)
     {
-    SLerrno_set_errno (retval);
+    (void) SLerrno_set_errno (retval);
     (void) SLang_push_null ();
     }
   else
-     push_grp_struct (&grent);
+    push_grp_struct (&grent);
 }
 
 typedef struct
@@ -205,7 +208,7 @@ static void getpwuid_intrin (int *uid)
 
   if (pwentp == NULL)
     {
-    SLerrno_set_errno (retval);
+    (void) SLerrno_set_errno (retval);
     (void) SLang_push_null ();
     }
   else
@@ -230,7 +233,7 @@ static void getpwnan_intrin (char *name)
 
   if (pwentp == NULL)
     {
-    SLerrno_set_errno (retval);
+    (void) SLerrno_set_errno (retval);
     (void) SLang_push_null ();
     }
   else
@@ -253,11 +256,169 @@ static void realpath_intrin (char *path)
    
    if (realpath (path, p) == 0)
      {
-     SLerrno_set_errno (errno);
+     (void) SLerrno_set_errno (errno);
      (void) SLang_push_null ();
      }
    else
-     (void)SLang_push_string (p);
+     (void) SLang_push_string (p);
+}
+
+static int fileexists_intrin (char *path)
+{
+  if (-1 == access (path, F_OK))
+    return 0;
+
+  return 1;
+}
+
+static int istype (int st_mode, char *what)
+{
+   int ret;
+
+// stat_is() code from upstream
+   if (!strcmp (what, "sock")) ret = S_ISSOCK(st_mode);
+   else if (!strcmp (what, "fifo")) ret = S_ISFIFO(st_mode);
+   else if (!strcmp (what, "blk")) ret = S_ISBLK(st_mode);
+   else if (!strcmp (what, "chr")) ret = S_ISCHR(st_mode);
+   else if (!strcmp (what, "dir")) ret = S_ISDIR(st_mode);
+   else if (!strcmp (what, "reg")) ret = S_ISREG(st_mode);
+   else if (!strcmp (what, "lnk")) ret = S_ISLNK(st_mode);
+   else return 0;
+
+   return (char) (ret != 0);
+}
+
+static int istype_intrin (void)
+{
+   char *what;
+   int ret;
+   int st_mode;
+
+   if (-1 == SLang_pop_slstring (&what))
+     return 0;
+
+   if (SLANG_NULL_TYPE == SLang_peek_at_stack ())
+     {
+     SLang_pop_null ();
+     return 0;
+     }
+   
+   if (-1 == SLang_pop_int (&st_mode))
+     return 0;
+  
+   return istype (st_mode, what);
+}
+
+static int _isdirectory_intrin (char *dir)
+{
+  int ret = fileexists_intrin (dir);
+  if (0 == ret)
+    return 0;
+
+  struct stat st;
+ 
+  ret = lstat (dir, &st);
+  
+  if (-1 == ret)
+   {
+   (void) SLerrno_set_errno (errno);
+   return 0;
+   }
+
+  return istype (st.st_mode, "dir");
+}
+
+static int __isdirectory_intrin (char *dir)
+{
+  int ret = fileexists_intrin (dir);
+  if (0 == ret)
+    return 0;
+
+  struct stat st;
+ 
+  ret = stat (dir, &st);
+  
+  if (-1 == ret)
+   {
+   (void) SLerrno_set_errno (errno);
+   return 0;
+   }
+
+  return istype (st.st_mode, "dir");
+}
+
+static SLang_CStruct_Field_Type Fstat_Struct [] =
+{
+   MAKE_CSTRUCT_INT_FIELD(struct stat, st_dev, "st_dev", 0),
+   MAKE_CSTRUCT_INT_FIELD(struct stat, st_ino, "st_ino", 0),
+   MAKE_CSTRUCT_INT_FIELD(struct stat, st_mode, "st_mode", 0),
+   MAKE_CSTRUCT_INT_FIELD(struct stat, st_nlink, "st_nlink", 0),
+   MAKE_CSTRUCT_UINT_FIELD(struct stat, st_uid, "st_uid", 0),
+   MAKE_CSTRUCT_UINT_FIELD(struct stat, st_gid, "st_gid", 0),
+   MAKE_CSTRUCT_INT_FIELD(struct stat, st_rdev, "st_rdev", 0),
+   MAKE_CSTRUCT_UINT_FIELD(struct stat, st_size, "st_size", 0),
+   MAKE_CSTRUCT_UINT_FIELD(struct stat, st_atime, "st_atime", 0),
+   MAKE_CSTRUCT_UINT_FIELD(struct stat, st_mtime, "st_mtime", 0),
+   MAKE_CSTRUCT_UINT_FIELD(struct stat, st_ctime, "st_ctime", 0),
+   SLANG_END_CSTRUCT_TABLE
+};
+
+static void fstat_intrin (void)
+{
+   struct stat st;
+   int status;
+   int fd;
+   SLang_MMT_Type *mmt = NULL;
+   SLFile_FD_Type *f = NULL;
+   
+   switch (SLang_peek_at_stack ())
+     {
+      case SLANG_FILE_FD_TYPE:
+	if (-1 == SLfile_pop_fd (&f))
+          return;
+	if (-1 == SLfile_get_fd (f, &fd))
+          {
+          SLfile_free_fd (f);
+          return;
+          }
+        break;
+
+      case SLANG_FILE_PTR_TYPE:
+        {
+        FILE *fp;
+        if (-1 == SLang_pop_fileptr (&mmt, &fp))
+          return;
+        fd = fileno (fp);
+        }
+        break;
+       
+      case SLANG_INT_TYPE:
+	if (-1 == SLang_pop_int (&fd))
+          {
+          (void) SLerrno_set_errno (SL_TYPE_MISMATCH);
+	  return;
+          }
+        break;
+
+      default:
+        SLdo_pop_n (SLang_Num_Function_Args);
+        (void) SLerrno_set_errno (SL_TYPE_MISMATCH);
+        (void) SLang_push_null ();
+        return;
+     }
+
+   status = fstat (fd, &st);
+
+   if (status == 0)
+     SLang_push_cstruct ((VOID_STAR) &st, Fstat_Struct);
+   else
+     {
+     (void) SLerrno_set_errno (errno);
+     (void) SLang_push_null ();
+     }
+
+   if (f != NULL) SLfile_free_fd (f);
+   if (mmt != NULL) SLang_free_mmt (mmt);
 }
 
 static SLang_Intrin_Fun_Type Ayios_Intrinsics [] =
@@ -265,6 +426,11 @@ static SLang_Intrin_Fun_Type Ayios_Intrinsics [] =
    MAKE_INTRINSIC_SS("auth", auth_intrin, SLANG_INT_TYPE),
    MAKE_INTRINSIC_SI("initgroups", initgroups_intrin, SLANG_INT_TYPE),
    MAKE_INTRINSIC_S("realpath", realpath_intrin, SLANG_VOID_TYPE),
+   MAKE_INTRINSIC_S("fileexists", fileexists_intrin, SLANG_INT_TYPE),
+   MAKE_INTRINSIC_0("istype", istype_intrin, SLANG_INT_TYPE),
+   MAKE_INTRINSIC_0("fstat", fstat_intrin, SLANG_VOID_TYPE),
+   MAKE_INTRINSIC_S("_isdirectory", _isdirectory_intrin, SLANG_INT_TYPE),
+   MAKE_INTRINSIC_S("__isdirectory", __isdirectory_intrin, SLANG_INT_TYPE),
    MAKE_INTRINSIC_S("getpwnam", getpwnan_intrin, SLANG_VOID_TYPE),
    MAKE_INTRINSIC_I("getpwuid", getpwuid_intrin, SLANG_VOID_TYPE),
    MAKE_INTRINSIC_S("getgrnam", getgrname_intrin, SLANG_VOID_TYPE),
