@@ -20,14 +20,64 @@
 
 SLANG_MODULE(ayios);
 
+char *myStrCat (char *s, char *a) {
+    while (*s != '\0') s++;
+    while (*a != '\0') *s++ = *a++;
+    *s = '\0';
+    return s;
+}
+
+/*
+ see
+ http://stackoverflow.com/questions/5770940/how-repeat-a-string-in-language-c?
+ 
+ By using above function instead of strcat is multiply faster.
+ Also  the following slang code is much faster than using strcat and sligtly slower
+ than the repeat intrinsic
+ 
+define repeat (str, count)
+{
+  ifnot (0 < count)
+    return "";
+
+  variable ar = String_Type[count];
+  ar[*] = str;
+  return strjoin (ar);
+}
+
+this function returns NULL if (count < 0)
+*/
+
+static void repeat_intrin (char *str, int *count)
+{
+  if (0 == count)
+      (void) SLang_push_string (str);
+  
+  if (0 > count)
+      (void) SLang_push_null ();
+
+  //strlen returns size_t
+  char *res = malloc (strlen (str) * (size_t) *count + 1);
+
+  *res = '\0';
+  
+  char *tmp = myStrCat (res, str);
+
+  while (--*count > 0)
+      tmp = myStrCat (tmp, str);
+
+  (void) SLang_push_string (res);
+}
+
 static int initgroups_intrin (char *user, int *gid)
 {
-   int retval;
-   retval = initgroups (user, (gid_t) *gid);
-   if (-1 == retval)
-     (void) SLerrno_set_errno (errno);
+    int retval;
+    retval = initgroups (user, (gid_t) *gid);
 
-  return retval;
+    if (-1 == retval)
+      (void) SLerrno_set_errno (errno);
+
+    return retval;
 }
 
 int custom_converation (int num_msg, const struct pam_message** msg, struct pam_response** resp, void* appdata_ptr)
@@ -422,7 +472,8 @@ static void fstat_intrin (void)
 }
 
 static SLang_Intrin_Fun_Type Ayios_Intrinsics [] =
-{
+{ 
+   MAKE_INTRINSIC_SI("repeat", repeat_intrin, SLANG_VOID_TYPE),
    MAKE_INTRINSIC_SS("auth", auth_intrin, SLANG_INT_TYPE),
    MAKE_INTRINSIC_SI("initgroups", initgroups_intrin, SLANG_INT_TYPE),
    MAKE_INTRINSIC_S("realpath", realpath_intrin, SLANG_VOID_TYPE),
