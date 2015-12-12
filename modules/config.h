@@ -173,7 +173,7 @@
 #define HAVE_SIGADDSET 1
 
 #define HAVE_ICONV 1
-#define ICONV_CONST 
+#define ICONV_CONST
 #define HAVE_FORK 1
 #define HAVE_WAITPID 1
 #if defined(HAVE_SIGADDSET) && defined(HAVE_SIGEMPTYSET)

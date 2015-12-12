@@ -61,7 +61,7 @@ ayios-module.so:
 install:
 	${INSTALL_DIR} ${MODULE_DIR}
 	${INSTALL_DIR} ${MACHINE_DIR}
-	${INSTALL_DIR} ${MODULE_INSTALL_DIR}	
+	${INSTALL_DIR} ${MODULE_INSTALL_DIR}
 	@for i in $(MODULES); \
 	do \
 		echo $(INSTALL_MODULE) $$i; \

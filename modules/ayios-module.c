@@ -1,7 +1,7 @@
  /*
  * This code was written by Agathoklis D. Hatzimanikas
  * with ideas from various sources around the OS universe
- * and from S-Lang sources study  
+ * and from S-Lang sources study
  * You may distribute it under the terms of the GNU General Public
  * License.
  */
@@ -55,12 +55,12 @@ static void repeat_intrin (char *str, int *count)
     (void) SLang_push_string ("");
     return;
     }
-  
+ 
   //strlen returns size_t
   char *res = malloc (strlen (str) * (size_t) *count + 1);
 
   *res = '\0';
-  
+ 
   char *tmp = myStrCat (res, str);
 
   while (--*count > 0)
@@ -91,22 +91,22 @@ int custom_converation (int num_msg, const struct pam_message** msg, struct pam_
    return PAM_SUCCESS;
 }
 
-static int auth_intrin (char *user, char* pass) 
+static int auth_intrin (char *user, char* pass)
 {
    char* password = (char*) malloc (strlen (pass) + 1);
 
    strcpy (password, pass);
 
    struct pam_conv pamc = {custom_converation, password};
-   pam_handle_t* pamh; 
+   pam_handle_t* pamh;
    int retval;
-   
+ 
    if ((retval = pam_start ("exit", user, &pamc, &pamh)) == PAM_SUCCESS)
      {
      retval = pam_authenticate (pamh, 0);
-     
+ 
      if (pam_end (pamh, 0) != PAM_SUCCESS)
-       return -1; 
+       return -1;
 
      return retval == PAM_SUCCESS ? 0 : -1;
      }
@@ -114,7 +114,7 @@ static int auth_intrin (char *user, char* pass)
      return -1;
 }
 
-static int push_grp_struct (struct group *grent)
+static void push_grp_struct (struct group *grent)
 {
 #define NUM_GR_FIELDS 4
    static SLFUTURE_CONST char *field_names[NUM_GR_FIELDS] =
@@ -125,7 +125,7 @@ static int push_grp_struct (struct group *grent)
    VOID_STAR field_values[NUM_GR_FIELDS];
    SLang_Array_Type *at;
    SLindex_Type idx;
-   
+ 
    int ndx;
    int i;
 
@@ -145,9 +145,9 @@ static int push_grp_struct (struct group *grent)
    field_types[i] = SLANG_NULL_TYPE;
 
    i++;
-   
+ 
    for (ndx = 0; grent->gr_mem[ndx] != NULL; ndx++);
-   
+ 
    idx = ndx;
 
    at = SLang_create_array (SLANG_STRING_TYPE, 0, NULL, &idx, 1);
@@ -172,13 +172,13 @@ static void getgrname_intrin (char *name)
   char *buf;
   size_t bufsize;
   int retval;
-  
+ 
   bufsize = sysconf (_SC_GETPW_R_SIZE_MAX);
   if (bufsize == -1)
      bufsize = 16384;
 
   buf = malloc (bufsize);
-  
+ 
   retval = getgrnam_r (name, &grent, buf, bufsize, &grentp);
 
   if (grentp == NULL)
@@ -197,13 +197,13 @@ static void getgrgid_intrin (int *gid)
   char *buf;
   size_t bufsize;
   int retval;
-  
+ 
   bufsize = sysconf (_SC_GETPW_R_SIZE_MAX);
   if (bufsize == -1)
     bufsize = 16384;
 
   buf = malloc (bufsize);
-  
+ 
   retval = getgrgid_r ((gid_t) *gid, &grent, buf, bufsize, &grentp);
 
   if (grentp == NULL)
@@ -247,13 +247,13 @@ static void getpwuid_intrin (int *uid)
   char *buf;
   size_t bufsize;
   int retval;
-  
+ 
   bufsize = sysconf (_SC_GETPW_R_SIZE_MAX);
   if (bufsize == -1)
      bufsize = 16384;
 
   buf = malloc (bufsize);
-  
+ 
   retval = getpwuid_r ((uid_t) *uid, &pwent, buf, bufsize, &pwentp);
 
   if (pwentp == NULL)
@@ -272,13 +272,13 @@ static void getpwnan_intrin (char *name)
   char *buf;
   size_t bufsize;
   int retval;
-  
+ 
   bufsize = sysconf (_SC_GETPW_R_SIZE_MAX);
   if (bufsize == -1)
      bufsize = 16384;
 
   buf = malloc (bufsize);
-   
+ 
   retval = getpwnam_r (name, &pwent, buf, bufsize, &pwentp);
 
   if (pwentp == NULL)
@@ -303,7 +303,7 @@ static void realpath_intrin (char *path)
 #endif
 
    char p[path_max];
-   
+ 
    if (realpath (path, p) == 0)
      {
      (void) SLerrno_set_errno (errno);
@@ -320,6 +320,7 @@ static int fileexists_intrin (char *path)
 
   return 1;
 }
+
 
 static int istype (int st_mode, char *what)
 {
@@ -338,6 +339,7 @@ static int istype (int st_mode, char *what)
    return (char) (ret != 0);
 }
 
+/*
 static int istype_intrin (void)
 {
    char *what;
@@ -352,12 +354,14 @@ static int istype_intrin (void)
      SLang_pop_null ();
      return 0;
      }
-   
+ 
    if (-1 == SLang_pop_int (&st_mode))
      return 0;
-  
+ 
    return istype (st_mode, what);
 }
+
+*/
 
 static int _isdirectory_intrin (char *dir)
 {
@@ -368,7 +372,7 @@ static int _isdirectory_intrin (char *dir)
   struct stat st;
  
   ret = lstat (dir, &st);
-  
+ 
   if (-1 == ret)
    {
    (void) SLerrno_set_errno (errno);
@@ -387,7 +391,7 @@ static int __isdirectory_intrin (char *dir)
   struct stat st;
  
   ret = stat (dir, &st);
-  
+ 
   if (-1 == ret)
    {
    (void) SLerrno_set_errno (errno);
@@ -420,7 +424,7 @@ static void fstat_intrin (void)
    int fd;
    SLang_MMT_Type *mmt = NULL;
    SLFile_FD_Type *f = NULL;
-   
+ 
    switch (SLang_peek_at_stack ())
      {
       case SLANG_FILE_FD_TYPE:
@@ -441,7 +445,7 @@ static void fstat_intrin (void)
         fd = fileno (fp);
         }
         break;
-       
+ 
       case SLANG_INT_TYPE:
 	if (-1 == SLang_pop_int (&fd))
           {
@@ -472,13 +476,13 @@ static void fstat_intrin (void)
 }
 
 static SLang_Intrin_Fun_Type Ayios_Intrinsics [] =
-{ 
+{
    MAKE_INTRINSIC_SI("repeat", repeat_intrin, SLANG_VOID_TYPE),
    MAKE_INTRINSIC_SS("auth", auth_intrin, SLANG_INT_TYPE),
    MAKE_INTRINSIC_SI("initgroups", initgroups_intrin, SLANG_INT_TYPE),
    MAKE_INTRINSIC_S("realpath", realpath_intrin, SLANG_VOID_TYPE),
    MAKE_INTRINSIC_S("fileexists", fileexists_intrin, SLANG_INT_TYPE),
-   MAKE_INTRINSIC_0("istype", istype_intrin, SLANG_INT_TYPE),
+/*   MAKE_INTRINSIC_0("istype", istype_intrin, SLANG_VOID_TYPE), */
    MAKE_INTRINSIC_0("fstat", fstat_intrin, SLANG_VOID_TYPE),
    MAKE_INTRINSIC_S("_isdirectory", _isdirectory_intrin, SLANG_INT_TYPE),
    MAKE_INTRINSIC_S("__isdirectory", __isdirectory_intrin, SLANG_INT_TYPE),
